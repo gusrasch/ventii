@@ -1,5 +1,4 @@
 import base64
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -8,32 +7,6 @@ from typing import List
 from .models import EventInfo, ProcessingRun
 from .steps import filter_step, summarize_step, structure_step
 from .storage import save_processing_run
-
-
-def _load_image_as_base64(image_path: str) -> str:
-    """
-    Load an image file and convert it to base64 string.
-    
-    Args:
-        image_path: Path to the image file
-        
-    Returns:
-        Base64 encoded image string
-    """
-    with open(image_path, 'rb') as image_file:
-        image_data = image_file.read()
-        return base64.b64encode(image_data).decode('utf-8')
-
-
-def _get_today_date_string() -> str:
-    """
-    Get today's date as a string for relative time parsing.
-    
-    Returns:
-        Today's date in YYYY-MM-DD format
-    """
-    return datetime.now().strftime('%Y-%m-%d')
-
 
 def process_image(image_path: str, save_run: bool = True) -> EventInfo:
     """
@@ -52,12 +25,11 @@ def process_image(image_path: str, save_run: bool = True) -> EventInfo:
     # Generate run ID and get current timestamp
     run_id = str(uuid.uuid4())
     timestamp = datetime.now()
-    
+
     # Load image and convert to base64
-    image_b64 = _load_image_as_base64(image_path)
-    
-    # Get today's date as string
-    today_date = _get_today_date_string()
+    with open(image_path, 'rb') as image_file:
+        image_data = image_file.read()
+        image_b64 = base64.b64encode(image_data).decode('utf-8')
     
     # Create processing run object to track results
     processing_run = ProcessingRun(
@@ -67,52 +39,27 @@ def process_image(image_path: str, save_run: bool = True) -> EventInfo:
         config={
             'model': 'gpt-4o',
             'temperature': 0,
-            'today_date': today_date
-        }
+        },
+        filter_result=None,
+        summary_result=None,
+        structured_result=None,
     )
     
-    # Step 1: Filter - determine if image contains event info
-    # Basic retry logic: try up to 3 times
-    filter_result = None
-    for attempt in range(3):
-        try:
-            filter_result = filter_step(image_b64)
-            break
-        except Exception as e:
-            if attempt == 2:  # Last attempt
-                raise e
-            continue
+    structured_result = None
     
+    # Step 1: Filter - determine if image contains event info
+    filter_result = filter_step(image_b64)
     processing_run.filter_result = filter_result
     
-    # If filter says no event info, still continue but note the result
-    # (following "fail fast" principle - let caller decide what to do)
-    
-    # Step 2: Summarize - extract unstructured summary
-    summary_result = None
-    for attempt in range(3):
-        try:
-            summary_result = summarize_step(image_b64, today_date)
-            break
-        except Exception as e:
-            if attempt == 2:  # Last attempt
-                raise e
-            continue
-    
-    processing_run.summary_result = summary_result
-    
-    # Step 3: Structure - extract structured EventInfo
-    structured_result = None
-    for attempt in range(3):
-        try:
-            structured_result = structure_step(image_b64, summary_result)
-            break
-        except Exception as e:
-            if attempt == 2:  # Last attempt
-                raise e
-            continue
-    
-    processing_run.structured_result = structured_result
+    if filter_result:
+        
+        # Step 2: Summarize - extract unstructured summary
+        summary_result = summarize_step(image_b64, datetime.now().strftime('%Y-%m-%d'))
+        processing_run.summary_result = summary_result
+        
+        # Step 3: Structure - extract structured EventInfo
+        structured_result = structure_step(image_b64, summary_result)
+        processing_run.structured_result = structured_result
     
     # Save run if requested
     if save_run:
@@ -136,7 +83,7 @@ def process_directory(dir_path: str) -> List[EventInfo]:
     dir_path_obj = Path(dir_path)
     
     # Define supported image extensions
-    image_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp'}
+    image_extensions = {'.jpg', '.jpeg', '.png'}
     
     # Find all image files in the directory
     image_files = []
