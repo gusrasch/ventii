@@ -1,0 +1,11 @@
+[project]
+name = "ventii"
+version = "0.1.0"
+description = "event flyer processing tool"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
