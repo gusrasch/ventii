@@ -1,2 +1,4 @@
 .env
-.temp_cleanup/
+run_history/
+
+src/ventii/__pycache__
