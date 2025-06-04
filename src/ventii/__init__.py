@@ -1,4 +1,4 @@
-from .main import process_image, process_directory
+from .pipeline import process_image, process_directory
 from .models import EventInfo
 
 # Export main functions for easy importing

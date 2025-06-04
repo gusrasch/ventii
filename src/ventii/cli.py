@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import List
 
-from .main import process_image, process_directory
+from .pipeline import process_image, process_directory
 from .models import EventInfo
 
 
